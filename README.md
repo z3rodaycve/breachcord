@@ -1,4 +1,4 @@
-<h1 align="center"><br><img src="https://i.imgur.com/b8C4rrK.jpeg" alt="Red - Discord Bot"></a><br>Breachcord v1.0<br></h1>
+<h1 align="center"><br><img src="https://i.imgur.com/b8C4rrK.jpeg" alt="Red - Discord Bot"></a><br>Breachcord v1.0.1<br></h1>
 
 <h4 align="center">Data Forensics, Data Analysis, Data Breach Lookup</h4>
 
@@ -32,7 +32,7 @@ All documentation, including the installation guide [can be found here](https://
 
 # Upcoming Updates / To-do List
 
-- Integration with more data analysis systems ([HIBP](https://haveibeenpwned.com/), and more)
+- ~~Integration with more data analysis systems ([HIBP](https://haveibeenpwned.com/), and more)~~
 
 # License
 
