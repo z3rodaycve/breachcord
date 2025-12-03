@@ -24,17 +24,88 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-api_key = os.getenv('INTELX_TOKEN')
+def hibp_search(email: str):
+    timestamp_start = time.time()
+    time_now = datetime.datetime.now(datetime.UTC)
+
+    hibp_api_key = os.getenv('HIBP_TOKEN')
+    api_url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}?truncateResponse=false"
+    
+    headers = {
+        "User-Agent": "Breachcord Developments",
+        "hibp-api-key": hibp_api_key
+    }
+
+    init_search = requests.get(api_url, headers=headers, timeout=30)
+    print(f"{bcolors.OKCYAN}[HAVEIBEENPWNED REQUEST]{bcolors.ENDC} Search request started with email: {email} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+    status = init_search.status_code
+    
+    if status == 200:
+        print(f"{bcolors.OKGREEN}[HAVEIBEENPWNED REQUEST SUCCESS]{bcolors.ENDC} Search request initiated with email: {email} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")    
+        init_json = json.loads(init_search.text)
+
+        status = 1
+        timestamp_end = time.time()
+        
+        if init_json == None:
+            return {
+                "status": 0
+        }
+        else:
+            # Stealer Logs Domains
+            stealer_domains = [""] 
+            isStealerLog = False
+            for log in init_json:
+                isStealerLog = log.get("IsStealerLog", bool)
+                
+                if isStealerLog == True:
+                    stealer_url = f"https://haveibeenpwned.com/api/v3/stealerlogsbyemail/{email}"
+                    stealer_request = requests.get(stealer_url, headers=headers, timeout=30)
+                    stealer_json = json.loads(stealer_request.text)
+
+                    for domain in stealer_json:
+                        if domain not in stealer_domains:
+                            stealer_domains.append(domain)
+
+                    stealer_domains_json = json.dumps(stealer_domains)
+                    return {
+                        "result": init_json,
+                        "isStealer": {"status": True},
+                        "stealer_domains": stealer_domains_json,
+                        "timestamp_start": timestamp_start,
+                        "timestamp_end": timestamp_end
+                    }
+                else:
+                    return {
+                        "result": init_json,
+                        "isStealer": {"status": False},
+                        "stealer_domains": "{}",
+                        "timestamp_start": timestamp_start,
+                        "timestamp_end": timestamp_end
+                    }
+    elif status == 404:
+        return {
+            "status": 1
+        }
+        
+    elif status == 400 or status == 401 or status == 403:
+        print(f"{bcolors.FAIL}[HAVEIBEENPWNED REQUEST FAIL]{bcolors.ENDC} Search request failed with email: {email}, status code: {status} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+        
+        return {
+            "status": 2
+        }
 
 def intelx_search(domain: str, results_amount: int):
     timestamp_start = time.time()
     time_now = datetime.datetime.now(datetime.UTC)
 
     api_url = os.getenv('INTELX_PORTAL')
+    intelx_api_key = os.getenv('INTELX_TOKEN')
 
     headers = {
         "User-Agent": os.getenv('INTELX_APPLICATION'),
-        "x-key": api_key, # Intelx API Key
+        "x-key": intelx_api_key, # Intelx API Key
         "Content-Type": "application/json"
     }
     payload = {
