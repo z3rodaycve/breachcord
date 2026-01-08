@@ -21,6 +21,9 @@ pip_version = 0
 
 # Install Methods 
 def automatic_install():
+    """
+    Runs an automated installation process using the terminal/command prompt and pip.
+    """
     print(f"{bcolors.OKCYAN}[CHECKING]{bcolors.ENDC} Checking for {bcolors.OKBLUE}pip{bcolors.ENDC}")
 
     pip = os.popen("pip --version")
@@ -51,11 +54,17 @@ def automatic_install():
     input()
 
 def manual_install():
+    """
+    Prompts the user to manually install all required dependencies.
+    """
     print(f"{bcolors.WARNING}[NOTICE]{bcolors.ENDC} If you have never installed Python libraries, please run {bcolors.BOLD}AUTOMATIC{bcolors.ENDC} install instead.")
     print(f"{bcolors.OKCYAN}[INSTALLATION INFO]{bcolors.ENDC} Please install all required Python libraries, then {bcolors.BOLD}press any key{bcolors.ENDC} here to finish the installation process.")
     input()
 
 def lock_install(install_lock):
+    """
+    Locks the installer setup dialog by writing to a .install-lock file (default).
+    """
     with open(install_lock, "w") as f:
             f.write("This file was automatically generated because of finished installation process made by Breachcord. To restart installation process, please delete this file.")
 

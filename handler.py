@@ -1,6 +1,3 @@
-# Your application must self-identify via the “User-Agent” header. Failure to self-identify may result in
-# revoking your API key, your license and banning your software.
-
 import requests
 import json
 import time
@@ -24,15 +21,24 @@ class bcolors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# Breachcord Functions
 def hibp_search(email: str):
+    """
+    HaveIBeenPwned function for checking whether an email has a breached password record/s.
+
+    [   Requirements:   ]
+    HIBP_TOKEN is required and can be obtained by upgrading to a paid plan at haveibeenpwned.com/subscription.
+    """
     timestamp_start = time.time()
     time_now = datetime.datetime.now(datetime.UTC)
 
+    # Required variables
     hibp_api_key = os.getenv('HIBP_TOKEN')
     api_url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}?truncateResponse=false"
-    
+    user_agent = os.getenv('HIBP_APPLICATION')
+
     headers = {
-        "User-Agent": "Breachcord Developments",
+        "User-Agent": user_agent,
         "hibp-api-key": hibp_api_key
     }
 
@@ -41,6 +47,7 @@ def hibp_search(email: str):
 
     status = init_search.status_code
     
+    # Request status code filtering
     if status == 200:
         print(f"{bcolors.OKGREEN}[HAVEIBEENPWNED REQUEST SUCCESS]{bcolors.ENDC} Search request initiated with email: {email} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")    
         init_json = json.loads(init_search.text)
@@ -53,7 +60,7 @@ def hibp_search(email: str):
                 "status": 0
         }
         else:
-            # Stealer Logs Domains
+            # Stealer logs domains parsing
             stealer_domains = [""] 
             isStealerLog = False
             for log in init_json:
@@ -95,17 +102,29 @@ def hibp_search(email: str):
         return {
             "status": 2
         }
-
 def intelx_search(domain: str, results_amount: int):
+    """
+    IntelX function for checking whether an email has a breached account record/s.
+    
+    [   Requirements:   ]
+    INTELX_PORTAL is required and can be obtained from the IntelX Developer Dashboard (intelx.io/account?tab=developer).
+    INTELX_TOKEN is required and can be obtained from the IntelX Developer Dashboard.
+    INTELX_APPLICATION s a unique identifier for your Breachcord Application and is used to identify it within IntelX.
+        as stated in the IntelX documentation:: "Your application must self-identify via the {User-Agent} header. Failure to self-identify may result in
+                                                revoking your API key, your license and banning your software."
+    """
+
     timestamp_start = time.time()
     time_now = datetime.datetime.now(datetime.UTC)
 
+    # Required variables
     api_url = os.getenv('INTELX_PORTAL')
     intelx_api_key = os.getenv('INTELX_TOKEN')
+    user_agent = os.getenv('INTELX_APPLICATION')
 
     headers = {
-        "User-Agent": os.getenv('INTELX_APPLICATION'),
-        "x-key": intelx_api_key, # Intelx API Key
+        "User-Agent": user_agent,
+        "x-key": intelx_api_key, 
         "Content-Type": "application/json"
     }
     payload = {
@@ -124,6 +143,7 @@ def intelx_search(domain: str, results_amount: int):
     
     status = init_search.status_code
 
+    # Request status code filtering
     if status == 200:
         print(f"{bcolors.OKCYAN}[INTELX REQUEST]{bcolors.ENDC} Search request initiated with domain: {domain} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
     elif status == 400:
@@ -141,8 +161,7 @@ def intelx_search(domain: str, results_amount: int):
 
     print(f"{bcolors.OKCYAN}[INTELX RESPONSE ID]{bcolors.ENDC} Search request connected with ID: {unique_id} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
 
-
-    # Result Parsing
+    # Result parsing
     result_url = f"https://free.intelx.io/intelligent/search/result?id={unique_id}&offset=&limit={int(results_amount)}&previewlines="
     resp = requests.get(result_url, headers=headers, timeout=30)
     resp_json = resp.json()
@@ -151,7 +170,7 @@ def intelx_search(domain: str, results_amount: int):
 
     timestamp_end = time.time()
 
-    # Status Checking
+    # Parsing records (if there are any)
     status = resp_json.get("status", 0)
     if status == 0:
         records = resp_json.get("records", [])
