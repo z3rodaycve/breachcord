@@ -30,6 +30,11 @@ If you need help with installing Breachcord, feel free to contact me anytime usi
 
 All documentation, including the installation guide [can be found here](https://github.com/z3rodaycve/breachcord/wiki).
 
+# Current Modules
+- IntelX Lookup by Domain Name (intelx.io)
+- HaveIBeenPwned (HIBP) Lookup by Email Address (haveibeenpwned.com)
+- Scamalytics IP to Fraudscore Lookup (scamalytics.com)
+
 # Upcoming Updates / To-do List
 
 - ~~Integration with more data analysis systems ([HIBP](https://haveibeenpwned.com/), and more)~~
