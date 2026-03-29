@@ -193,4 +193,85 @@ def intelx_search(domain: str, results_amount: int):
             "status": status,
             "timestamp_start": timestamp_start,
             "timestamp_end": timestamp_end
+        }      
+def scamalytics_search(ip: str):
+    """
+    Scamlytics function for IP score lookup.
+
+    [   Requirements:   ]
+    SCAMALYTICS_API_KEY is required and can be obtained by for free at https://scamalytics.com/ip/api/pricing.
+    SCAMALYTICS_USERNAME is required and can be obtained from API dashboard.
+    """
+    timestamp_start = time.time()
+    time_now = datetime.datetime.now(datetime.UTC)
+
+    # Required variables
+    scamalytics_api_key = os.getenv('SCAMALYTICS_API_KEY')
+    scamalytics_username = os.getenv('SCAMALYTICS_USERNAME')
+    api_url = f"https://api12.scamalytics.com/v3/{scamalytics_username}/?key={scamalytics_api_key}&ip={ip}"
+
+    init_search = requests.get(api_url, timeout=30)
+    print(f"{bcolors.OKCYAN}[SCAMALYTICS LOOKUP]{bcolors.ENDC} Lookup request started with IP: {ip} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+    status = init_search.status_code
+    # Request status code filtering
+    if status == 200:
+        print(f"{bcolors.OKGREEN}[SCAMALYTICS LOOKUP SUCCESS]{bcolors.ENDC} Lookup request initiated with IP: {ip} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")  
+        init_json = json.loads(init_search.text)
+
+        status = 1
+        timestamp_end = time.time()
+        
+        if init_json == None:
+            return {
+                "status": 0
+            }
+        scamalytics_json = init_json.get("scamalytics", {})
+        if scamalytics_json.get("status") != "ok":
+            print(f"{bcolors.FAIL}[SCAMALYTICS LOOKUP FAIL]{bcolors.ENDC} Lookup request failed with IP: {ip}, status code: {status} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+            return {
+                "status": 2
+            }
+        else:
+            scamalytics_json = init_json.get("scamalytics", {})
+            fraud_score = scamalytics_json.get("scamalytics_score")
+            fraud_risk = scamalytics_json.get("scamalytics_risk")
+            risk_factor = scamalytics_json.get("scamalytics_risk")
+            proxy_flags = []
+
+            proxy_detectors = {
+                "is_datacenter": "Datacenter",
+                "is_vpn": "VPN",
+                "is_apple_icloud_private_relay": "iCloud Private Relay",
+                "is_amazon_aws": "Amazon AWS",
+                "is_google": "Google"
+            }
+
+            proxy_info = scamalytics_json.get("scamalytics_proxy", {})
+
+            for key, label in proxy_detectors.items():
+                if proxy_info.get(key):
+                    proxy_flags.append(label)
+
+            return {
+                        "result": scamalytics_json,
+                        "fraud_score": fraud_score,
+                        "fraud_risk": fraud_risk,
+                        "risk_factor": risk_factor,
+                        "proxy_flags": proxy_flags,
+                        "timestamp_start": timestamp_start,
+                        "timestamp_end": timestamp_end
+            }
+
+
+    elif status == 404:
+        return {
+            "status": 1
+        }
+        
+    elif status == 400 or status == 401 or status == 403:
+        print(f"{bcolors.FAIL}[SCAMALYTICS LOOKUP FAIL]{bcolors.ENDC} Lookup request failed with IP: {ip}, status code: {status} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+        
+        return {
+            "status": 2
         }

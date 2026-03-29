@@ -530,6 +530,103 @@ class hibp_results(discord.ui.View):
         embed.set_footer(text=f"Page {index+1} of {self.total_pages}   •   Total results: {len(self.records)}")
         return embed
 
+# ============================
+#       Scamalytics
+# ============================
+class scamalytics_lookup(discord.ui.View):
+    """
+    Scamalytics lookup handler and parser. More information is available in the handler.py file.
+    """
+    def __init__(self, user_id: int):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+
+    @discord.ui.button(label="Lookup", style=discord.ButtonStyle.primary, emoji="🔍", custom_id="search")
+    async def search_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        """
+        Lookup button for the lookup embed. After the user clicks the button, a Scamalytics lookup request is initiated by a function in handler.py
+        """
+        data = search_data.get(self.user_id, {})
+
+        ip_query = data.get("ip", "n/a")
+        time_now = datetime.datetime.now(datetime.UTC)
+
+        ts_start = data.get("timestamp_start", 0)
+        ts_end = data.get("timestamp_end", time.time())
+
+        # Logs the Scamalytics event to the terminal/command prompt
+        print(f"{bcolors.OKCYAN}[SCAMALYTICS SEARCH START]{bcolors.ENDC} Discord User-ID: {self.user_id}, Search Query (IP): {ip_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+        
+        started_embed = discord.Embed(title="🕓  IP Lookup Started", description=f"An IpToScore lookup ({ip_query}) has started.", color=discord.Color.blurple())
+        started_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+        started_embed.set_footer(text=f"Search started by {self.user_id} on {time_now.strftime("%c")}(UTC)")
+
+        await interaction.response.send_message(embed=started_embed)
+
+        results_data = await asyncio.to_thread(handler.scamalytics_search, ip_query)
+        
+        # Parses the results and builds the final results embed
+        if results_data.get("status", 0) == 1:
+            """
+            The Scamalytics search request has failed.
+            """
+            ts_start = results_data.get("timestamp_start", 0)
+            ts_end = results_data.get("timestamp_end", time.time())
+
+            summary_embed = discord.Embed(title="❌  No results", description=f"An IpToScore Lookup has returned 0 results.", color=discord.Color.dark_red())
+            summary_embed.add_field(name="📂 Total results:", value=f"*0*", inline=False)
+            summary_embed.add_field(name="🔑 Queried IP:", value=f"*{ip_query}*", inline=False)
+            summary_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+            summary_embed.set_footer(text=f"No results found for the query   •   Time passed: {ts_end - ts_start:.2f}s")
+            
+            await interaction.followup.send(embed=summary_embed)
+        elif results_data.get("status", 0) == 2:
+            """
+            The search request failed or no valid API key/API username was provided.
+            """
+            print(f"{bcolors.FAIL}[SCAMALYTICS LOOKUP MALFUNCTION]{bcolors.ENDC} Your IpToScore Lookup has stumbled on a problem while trying to run. Check previous LOG information. | Discord User-ID: {self.user_id}, Queried IP: {ip_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+            ts_start = results_data.get("timestamp_start", 0)
+            ts_end = results_data.get("timestamp_end", time.time())
+
+            summary_embed = discord.Embed(title="❌  Lookup Error", description=f"Your IpToScore Lookup has stumbled on a problem while trying to run. Try again or see logs.", color=discord.Color.dark_red())
+            summary_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+            summary_embed.set_footer(text=f"Error while running IpToScore Lookup   •   Time passed: {ts_end - ts_start:.2f}s")
+            
+            await interaction.followup.send(embed=summary_embed)
+        else:
+            """
+            The search request succeeded and returned results. 
+            """
+            
+            ts_start = results_data.get("timestamp_start", 0)
+            ts_end = results_data.get("timestamp_end", time.time())
+
+            ip_fraudscore = results_data.get("fraud_score")
+            ip_fraudrisk = results_data.get("fraud_risk")
+            ip_fraudflags = results_data.get("proxy_flags")
+            ip_riskfactor = results_data.get("risk_factor")
+
+            summary_embed = discord.Embed(title="✅  IP To Fraudscore Results", description=f"An IpToScore Lookup has returned results from Scamalaytics database.", color=discord.Color.dark_teal())
+
+            risk_factor = ""
+            match ip_riskfactor.strip():
+                case "low":
+                    risk_factor = "🟢 LOW"
+                case "medium":
+                    risk_factor = "⚠️ MEDIUM"
+                case "high":
+                    risk_factor = "🚩 HIGH"
+                case "very high":
+                    risk_factor = "🚨 VERY HIGH"
+
+            summary_embed.add_field(name="👓 Risk Factor:", value=risk_factor, inline=False)
+            summary_embed.add_field(name="🖥️ Queried IP:", value=f"*{ip_query}*", inline=False)
+            summary_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+            summary_embed.set_footer(text=f"Successfully retrieved results   •   Time passed: {ts_end - ts_start:.2f}s")
+            
+            await interaction.followup.send(embed=summary_embed)
+            print(f"{bcolors.OKGREEN}[SCAMALYTICS LOOKUP COMPLETE]{bcolors.ENDC} Discord User-ID: {self.user_id}, Lookup Query (IP): {ip_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
 
 # Discord Commands & Events
 @bot.event
@@ -631,6 +728,47 @@ async def email_search(ctx: discord.ApplicationContext):
         if e != "":
             time_now = datetime.datetime.now(datetime.UTC)
             print(f"{bcolors.FAIL}[EMAIL SEARCH INPUT MALFUNCTION]{bcolors.FAIL} Error while waiting for input: {bcolors.UNDERLINE}{e}{bcolors.ENDC} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+        timeout_embed = discord.Embed(title="⏰  Timeout", description="You didn't reply in time. Please re-run the command again.", color=discord.Color.red())
+        timeout_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+        await ctx.followup.send(embed=timeout_embed, ephemeral=True)
+
+@bot.slash_command(name="iptoscore", description="Perform a IP fraud-score lookup.")
+async def iptoscore_lookup(ctx: discord.ApplicationContext):
+    """
+    Handles the /iptoscore command. After user input, a lookup request is processed by the Scamalytics handler.
+    """
+    embed = discord.Embed(title="🔗  IP to Fraudscore Lookup", description="Please enter the IP to use for the IP fraud score lookup.", color=discord.Colour.dark_theme())
+    embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+    embed.set_footer(text=watermark(ctx))
+
+    await ctx.respond(embed=embed)
+
+    def check(msg):
+        return msg.author == ctx.author and msg.channel == ctx.channel
+
+    try:
+        """
+        Waits for the users response (default timeout: 15 seconds).
+        """
+        msg = await bot.wait_for("message", check=check, timeout=request_timeout) 
+        query = msg.content.strip()
+        search_data[ctx.author.id] = {"ip": query}
+
+        query_embed = discord.Embed(title="🔎  Lookup Query", description=f"Your queried IP: **{query}**", color=discord.Color.blurple())
+        query_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+        embed.set_footer(text=watermark(ctx))
+        
+        view = scamalytics_lookup(ctx.author.id)
+        await ctx.followup.send(embed=query_embed, view=view)
+
+    except Exception as e:
+        """
+        Handles exceptions and prints the possible exception cause to the terminal/command prompt.
+        """
+        if e != "":
+            time_now = datetime.datetime.now(datetime.UTC)
+            print(f"{bcolors.FAIL}[USER INPUT MALFUNCTION]{bcolors.FAIL} Error while waiting for input: {bcolors.UNDERLINE}{e}{bcolors.ENDC} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
 
         timeout_embed = discord.Embed(title="⏰  Timeout", description="You didn't reply in time. Please re-run the command again.", color=discord.Color.red())
         timeout_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
