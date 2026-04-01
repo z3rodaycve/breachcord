@@ -96,7 +96,7 @@ def hibp_search(email: str):
             "status": 1
         }
         
-    elif status == 400 or status == 401 or status == 403:
+    else:
         print(f"{bcolors.FAIL}[HAVEIBEENPWNED REQUEST FAIL]{bcolors.ENDC} Search request failed with email: {email}, status code: {status} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
         
         return {
@@ -269,8 +269,67 @@ def scamalytics_search(ip: str):
             "status": 1
         }
         
-    elif status == 400 or status == 401 or status == 403:
+    else:
         print(f"{bcolors.FAIL}[SCAMALYTICS LOOKUP FAIL]{bcolors.ENDC} Lookup request failed with IP: {ip}, status code: {status} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+        
+        return {
+            "status": 2
+        }
+def veriphone_search(phone_num: str):
+    """
+    Veriphone function for phone carrier lookup.
+
+    [   Requirements:   ]
+    VERIPHONE_API_KEY is required and can be obtained by for free at https://veriphone.io (FREE Tier has a limit of 1000req./month)
+    """
+    timestamp_start = time.time()
+    time_now = datetime.datetime.now(datetime.UTC)
+
+    # Required variables
+    veriphone_api_key = os.getenv('VERIPHONE_API_KEY')
+    api_url = f"https://api.veriphone.io/v2/verify?key={veriphone_api_key}&phone={phone_num}"
+
+    init_search = requests.get(api_url, timeout=30)
+    print(f"{bcolors.OKCYAN}[VERIPHONE LOOKUP]{bcolors.ENDC} Lookup request started with phone number: {phone_num} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+    status = init_search.status_code
+    # Request status code filtering
+    if status == 200:
+        print(f"{bcolors.OKGREEN}[VERIPHONE LOOKUP SUCCESS]{bcolors.ENDC} Lookup request initiated with phone number: {phone_num} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")  
+        init_json = json.loads(init_search.text)
+
+        status = 1
+        timestamp_end = time.time()
+        
+        if init_json == None:
+            return {
+                "status": 0
+            }
+        else:
+            if init_json.get("phone_valid"):
+                phone_carrier = init_json.get("carrier")
+                phone_type = init_json.get("phone_type")
+                return {
+                            "phone_number": phone_num,
+                            "carrier": phone_carrier,
+                            "phone_type": phone_type,
+                            "timestamp_start": timestamp_start,
+                            "timestamp_end": timestamp_end
+                }
+            else:
+                return {
+                    "status": 1,
+                    "timestamp_start": timestamp_start,
+                    "timestamp_end": timestamp_end
+                }
+
+
+    elif status == 404:
+        return {
+            "status": 1
+        }
+    else:
+        print(f"{bcolors.FAIL}[VERIPHONE LOOKUP FAIL]{bcolors.ENDC} Lookup request failed with phone number: {phone_num}, status code: {status} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
         
         return {
             "status": 2

@@ -531,7 +531,7 @@ class hibp_results(discord.ui.View):
         return embed
 
 # ============================
-#       Scamalytics
+#        Scamalytics
 # ============================
 class scamalytics_lookup(discord.ui.View):
     """
@@ -628,6 +628,100 @@ class scamalytics_lookup(discord.ui.View):
             await interaction.followup.send(embed=summary_embed)
             print(f"{bcolors.OKGREEN}[SCAMALYTICS LOOKUP COMPLETE]{bcolors.ENDC} Discord User-ID: {self.user_id}, Lookup Query (IP): {ip_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
 
+# ============================
+#        Veriphone
+# ============================
+class veriphone_lookup(discord.ui.View):
+    """
+    More information is available in the handler.py file.
+    """
+    def __init__(self, user_id: int):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+
+    @discord.ui.button(label="Lookup", style=discord.ButtonStyle.primary, emoji="🔍", custom_id="search")
+    async def search_button(self, button: discord.ui.Button, interaction: discord.Interaction):
+        """
+        Lookup button for the lookup embed. After the user clicks the button, a Veriphone lookup request for phone carrier is initiated by a function in handler.py
+        """
+        data = search_data.get(self.user_id, {})
+
+        phone_query = data.get("phone_number", "n/a")
+
+        if phone_query.startswith('+'):
+            time_now = datetime.datetime.now(datetime.UTC)
+
+            ts_start = data.get("timestamp_start", 0)
+            ts_end = data.get("timestamp_end", time.time())
+
+            # Logs the Veriphone event to the terminal/command prompt
+            print(f"{bcolors.OKCYAN}[VERIPHONE LOOKUP START]{bcolors.ENDC} Discord User-ID: {self.user_id}, Search Query (Phone Number): {phone_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+            
+            started_embed = discord.Embed(title="🕓  Phone Number Lookup Started", description=f"PhoneToCarrier lookup ({phone_query}) has started.", color=discord.Color.blurple())
+            started_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+            started_embed.set_footer(text=f"Search started by {self.user_id} on {time_now.strftime("%c")}(UTC)")
+
+            await interaction.response.send_message(embed=started_embed)
+
+            results_data = await asyncio.to_thread(handler.veriphone_search, phone_query)
+            
+            # Parses the results and builds the final results embed
+            if results_data.get("status", 0) == 1:
+                """
+                The Veriphone search request has failed.
+                """
+                ts_start = results_data.get("timestamp_start", 0)
+                ts_end = results_data.get("timestamp_end", time.time())
+
+                summary_embed = discord.Embed(title="❌  No results", description=f"PhoneToCarrier Lookup has returned 0 results.", color=discord.Color.dark_red())
+                summary_embed.add_field(name="📂 Total results:", value=f"*0*", inline=False)
+                summary_embed.add_field(name="🔑 Queried Phone Number:", value=f"*{phone_query}*", inline=False)
+                summary_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+                summary_embed.set_footer(text=f"No results found for the query   •   Time passed: {ts_end - ts_start:.2f}s")
+                
+                await interaction.followup.send(embed=summary_embed)
+            elif results_data.get("status", 0) == 2:
+                """
+                The search request failed or no valid API key/API username was provided.
+                """
+                print(f"{bcolors.FAIL}[VERIPHONE LOOKUP MALFUNCTION]{bcolors.ENDC} Your PhoneToCarrier Lookup has stumbled on a problem while trying to run. Check previous LOG information. | Discord User-ID: {self.user_id}, Queried Phone Number: {phone_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+                ts_start = results_data.get("timestamp_start", 0)
+                ts_end = results_data.get("timestamp_end", time.time())
+
+                summary_embed = discord.Embed(title="❌  Lookup Error", description=f"Your PhoneToCarrier Lookup has stumbled on a problem while trying to run. Try again or see logs.", color=discord.Color.dark_red())
+                summary_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+                summary_embed.set_footer(text=f"Error while running PhoneToCarrier Lookup   •   Time passed: {ts_end - ts_start:.2f}s")
+                
+                await interaction.followup.send(embed=summary_embed)
+            else:
+                """
+                The search request succeeded and returned results. 
+                """
+                
+                ts_start = results_data.get("timestamp_start", 0)
+                ts_end = results_data.get("timestamp_end", time.time())
+
+                phone_carrier = results_data.get("carrier")
+                phone_type = results_data.get("phone_type")
+
+                summary_embed = discord.Embed(title="✅  Phone Number To Carrier Results", description=f"PhoneToCarrier Lookup has returned results from Veriphone database.", color=discord.Color.dark_teal())
+
+                summary_embed.add_field(name="☎️ Phone Carrier:", value=phone_carrier, inline=False)
+                if phone_type != "":
+                    summary_embed.add_field(name="⚙️ Phone Type:", value=phone_type, inline=False)
+                summary_embed.add_field(name="📲 Queried Phone Number:", value=f"*{phone_query}*", inline=False)
+                summary_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+                summary_embed.set_footer(text=f"Successfully retrieved results   •   Time passed: {ts_end - ts_start:.2f}s")
+                
+                await interaction.followup.send(embed=summary_embed)
+                print(f"{bcolors.OKGREEN}[VERIPHONE LOOKUP COMPLETE]{bcolors.ENDC} Discord User-ID: {self.user_id}, Lookup Query (Phone Number): {phone_query} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+        else:
+            error_embed = discord.Embed(title="❌  Incorrect phone number format", description=f"Your entered phone number (*{phone_query}*) is not in the correct format (eg. '+1999000999').", color=discord.Color.dark_red())
+            error_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+            error_embed.set_footer(text=f"Error while running PhoneToCarrier Lookup")
+            
+            await interaction.response.send_message(embed=error_embed)
 # Discord Commands & Events
 @bot.event
 async def on_ready():
@@ -760,6 +854,47 @@ async def iptoscore_lookup(ctx: discord.ApplicationContext):
         embed.set_footer(text=watermark(ctx))
         
         view = scamalytics_lookup(ctx.author.id)
+        await ctx.followup.send(embed=query_embed, view=view)
+
+    except Exception as e:
+        """
+        Handles exceptions and prints the possible exception cause to the terminal/command prompt.
+        """
+        if e != "":
+            time_now = datetime.datetime.now(datetime.UTC)
+            print(f"{bcolors.FAIL}[USER INPUT MALFUNCTION]{bcolors.FAIL} Error while waiting for input: {bcolors.UNDERLINE}{e}{bcolors.ENDC} | {bcolors.BOLD}[{time_now.strftime("%c")}]{bcolors.ENDC} UTC")
+
+        timeout_embed = discord.Embed(title="⏰  Timeout", description="You didn't reply in time. Please re-run the command again.", color=discord.Color.red())
+        timeout_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+        await ctx.followup.send(embed=timeout_embed, ephemeral=True)
+
+@bot.slash_command(name="phonecarrier", description="Performs a phone number lookup and retrieves phone carrier.")
+async def phonecarrier_lookup(ctx: discord.ApplicationContext):
+    """
+    Handles the /phonecarrier command. After user input, a lookup request is processed by the veriphone handler.
+    """
+    embed = discord.Embed(title="🔗  Phone Number to Carrier Lookup", description="Please enter phone number to use for the phone carrier lookup.", color=discord.Colour.dark_theme())
+    embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+    embed.set_footer(text=watermark(ctx))
+
+    await ctx.respond(embed=embed)
+
+    def check(msg):
+        return msg.author == ctx.author and msg.channel == ctx.channel
+
+    try:
+        """
+        Waits for the users response (default timeout: 15 seconds).
+        """
+        msg = await bot.wait_for("message", check=check, timeout=request_timeout) 
+        query = msg.content.strip()
+        search_data[ctx.author.id] = {"phone_number": query}
+
+        query_embed = discord.Embed(title="🔎  Lookup Query", description=f"Your queried phone number: **{query}**", color=discord.Color.blurple())
+        query_embed.set_author(name=f"{bot_name}", icon_url=f"{bot_photo}")
+        embed.set_footer(text=watermark(ctx))
+        
+        view = veriphone_lookup(ctx.author.id)
         await ctx.followup.send(embed=query_embed, view=view)
 
     except Exception as e:
